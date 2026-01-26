@@ -2,69 +2,241 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>KONEKKU CHAT</title>
+<title>KONEKKU • Hacker Chat</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 *{box-sizing:border-box}
 body{
   margin:0;
-  font-family:Arial,Helvetica,sans-serif;
-  background:#0f172a;
-  color:white;
+  font-family:Consolas,monospace;
+  background:#020617;
+  color:#00ff9c;
 }
 header{
-  background:#020617;
-  padding:10px;
+  background:#000;
+  padding:14px;
+  text-align:center;
+  box-shadow:0 0 20px #00ff9c33;
+}
+header b{font-size:18px}
+#status{
+  font-size:12px;
+  color:#7fffd4;
+}
+#users{
   display:flex;
-  justify-content:space-between;
-  align-items:center;
+  gap:8px;
+  padding:8px;
+  overflow-x:auto;
+  border-bottom:1px solid #00ff9c33;
 }
-#user{
-  padding:8px 10px;
-  font-size:14px;
-  color:#22d3ee;
+.user{
+  padding:6px 10px;
+  border:1px solid #00ff9c55;
+  border-radius:6px;
+  cursor:pointer;
+  white-space:nowrap;
 }
+.user.online{box-shadow:0 0 10px #00ff9c}
 #messages{
-  height:65vh;
+  height:55vh;
   overflow:auto;
-  padding:10px;
+  padding:12px;
 }
 .msg{
-  margin-bottom:8px;
-  padding:6px 8px;
+  margin-bottom:10px;
+  padding:8px;
+  border:1px solid #00ff9c44;
   border-radius:6px;
-  background:#020617;
 }
-.me{
-  background:#164e63;
-}
+.me{background:#003b2f}
 footer{
   display:flex;
-  gap:5px;
+  gap:6px;
   padding:10px;
-  background:#020617;
+  border-top:1px solid #00ff9c33;
 }
-footer input[type=text]{
-  flex:1;
+input,button{
+  background:#000;
+  color:#00ff9c;
+  border:1px solid #00ff9c55;
   padding:10px;
 }
-button{
-  padding:10px;
-  background:#22d3ee;
-  border:none;
-  cursor:pointer;
+button{cursor:pointer}
+audio{width:100%;margin-top:6px}
+
+/* POPUP */
+.popup{
+  position:fixed;
+  inset:0;
+  background:#000c;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  z-index:999;
 }
-img{
-  max-width:200px;
-  border-radius:6px;
-  margin-top:4px;
+.box{
+  background:#000;
+  padding:20px;
+  border:1px solid #00ff9c;
+  box-shadow:0 0 25px #00ff9c55;
+  text-align:center;
 }
 </style>
 </head>
 
 <body>
 
+<header>
+  <b>KONEKKU :: SECURE CHAT</b><br>
+  <span id="status">connecting...</span>
+</header>
+
+<div id="users"></div>
+<div id="messages"></div>
+
+<footer>
+  <input id="msg" placeholder="> ketik pesan">
+  <button onclick="send()">SEND</button>
+  <button id="rec">🎙</button>
+</footer>
+
+<div class="popup" id="popup">
+  <div class="box">
+    <h3>AUTH REQUIRED</h3>
+    <button id="login">LOGIN GOOGLE</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+/* FIREBASE CONFIG (KAMU) */
+const firebaseConfig = {
+  apiKey: "AIzaSyDdD92BTyFSd2xcouL6G9h92SNha99C7dY",
+  authDomain: "konekku-e391f.firebaseapp.com",
+  projectId: "konekku-e391f",
+  storageBucket: "konekku-e391f.firebasestorage.app",
+  messagingSenderId: "329115673192",
+  appId: "1:329115673192:web:4504a9952dfc687bac51dd"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+const provider = new GoogleAuthProvider();
+login.onclick=()=>signInWithPopup(auth,provider);
+
+let me=null, target=null;
+
+onAuthStateChanged(auth,u=>{
+  if(u){
+    me=u;
+    popup.style.display="none";
+    status.innerText="online as "+u.displayName;
+    setDoc(doc(db,"users",u.uid),{
+      name:u.displayName,
+      online:true,
+      last:serverTimestamp()
+    });
+    loadUsers();
+  }
+});
+
+/* USERS LIST */
+function loadUsers(){
+  onSnapshot(collection(db,"users"),snap=>{
+    users.innerHTML="";
+    snap.forEach(d=>{
+      if(d.id!==me.uid){
+        const u=d.data();
+        users.innerHTML+=`
+          <div class="user ${u.online?'online':''}"
+          onclick="selectUser('${d.id}','${u.name}')">
+          ${u.name}
+          </div>`;
+      }
+    });
+  });
+}
+
+window.selectUser=(uid,name)=>{
+  target=uid;
+  messages.innerHTML="";
+  loadChat();
+};
+
+/* PRIVATE CHAT */
+function loadChat(){
+  const room=[me.uid,target].sort().join("_");
+  const q=query(collection(db,"chats",room,"msg"),orderBy("time"));
+  onSnapshot(q,s=>{
+    messages.innerHTML="";
+    s.forEach(d=>{
+      const x=d.data();
+      messages.innerHTML+=`
+      <div class="msg ${x.uid===me.uid?'me':''}">
+        ${x.type==="voice"
+          ?`<audio controls src="${x.text}"></audio>`
+          :x.text}
+      </div>`;
+    });
+    messages.scrollTop=messages.scrollHeight;
+  });
+}
+
+window.send=async()=>{
+  if(!msg.value||!target) return;
+  const room=[me.uid,target].sort().join("_");
+  await addDoc(collection(db,"chats",room,"msg"),{
+    uid:me.uid,
+    text:msg.value,
+    type:"text",
+    time:serverTimestamp()
+  });
+  msg.value="";
+};
+
+/* VOICE */
+let media,recorder,chunks=[];
+rec.onclick=async()=>{
+  if(!target) return alert("Pilih user");
+  if(!recorder){
+    media=await navigator.mediaDevices.getUserMedia({audio:true});
+    recorder=new MediaRecorder(media);
+    recorder.ondataavailable=e=>chunks.push(e.data);
+    recorder.onstop=async()=>{
+      const blob=new Blob(chunks,{type:"audio/webm"});
+      chunks=[];
+      const r=ref(storage,"voice/"+Date.now()+".webm");
+      await uploadBytes(r,blob);
+      const url=await getDownloadURL(r);
+      const room=[me.uid,target].sort().join("_");
+      await addDoc(collection(db,"chats",room,"msg"),{
+        uid:me.uid,
+        text:url,
+        type:"voice",
+        time:serverTimestamp()
+      });
+    };
+    recorder.start();
+    rec.innerText="■";
+  }else{
+    recorder.stop();
+    recorder=null;
+    rec.innerText="🎙";
+  }
+};
+</script>
+
+</body>
+</html>
 <header>
   <b>KONEKKU CHAT</b>
   <button id="login">Login Google</button>
