@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>KONEKKU CHAT</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:#0f172a;
+  color:white;
+}
+header{
+  background:#020617;
+  padding:10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+#user{
+  padding:8px 10px;
+  font-size:14px;
+  color:#22d3ee;
+}
+#messages{
+  height:65vh;
+  overflow:auto;
+  padding:10px;
+}
+.msg{
+  margin-bottom:8px;
+  padding:6px 8px;
+  border-radius:6px;
+  background:#020617;
+}
+.me{
+  background:#164e63;
+}
+footer{
+  display:flex;
+  gap:5px;
+  padding:10px;
+  background:#020617;
+}
+footer input[type=text]{
+  flex:1;
+  padding:10px;
+}
+button{
+  padding:10px;
+  background:#22d3ee;
+  border:none;
+  cursor:pointer;
+}
+img{
+  max-width:200px;
+  border-radius:6px;
+  margin-top:4px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <b>KONEKKU CHAT</b>
+  <button id="login">Login Google</button>
+</header>
+
+<div id="user">Belum login</div>
+
+<div id="messages"></div>
+
+<footer>
+  <input id="msg" type="text" placeholder="Ketik pesan...">
+  <input id="img" type="file">
+  <button onclick="send()">➤</button>
+</footer>
+
+<script type="module">
+/* ===== FIREBASE ===== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { 
+  getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { 
+  getFirestore, collection, addDoc, onSnapshot, 
+  query, orderBy, serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { 
+  getStorage, ref, uploadBytes, getDownloadURL 
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+/* ===== CONFIG ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDdD92BTyFSd2xcouL6G9h92SNha99C7dY",
+  authDomain: "konekku-e391f.firebaseapp.com",
+  projectId: "konekku-e391f",
+  storageBucket: "konekku-e391f.firebasestorage.app",
+  messagingSenderId: "329115673192",
+  appId: "1:329115673192:web:4504a9952dfc687bac51dd"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+/* ===== LOGIN ===== */
+const provider = new GoogleAuthProvider();
+document.getElementById("login").onclick = ()=>{
+  signInWithPopup(auth, provider);
+};
+
+let me = null;
+
+onAuthStateChanged(auth, user=>{
+  if(user){
+    me = user;
+    document.getElementById("user").innerText =
+      "Login sebagai: " + user.displayName;
+    loadChat();
+  }
+});
+
+/* ===== LOAD CHAT ===== */
+function loadChat(){
+  const q = query(collection(db,"chats"), orderBy("time"));
+  onSnapshot(q, snap=>{
+    const box = document.getElementById("messages");
+    box.innerHTML="";
+    snap.forEach(doc=>{
+      const d = doc.data();
+      const isMe = me && d.uid === me.uid;
+      if(d.type==="img"){
+        box.innerHTML += `
+          <div class="msg ${isMe?'me':''}">
+            <b>${d.user}</b><br>
+            <img src="${d.text}">
+          </div>`;
+      }else{
+        box.innerHTML += `
+          <div class="msg ${isMe?'me':''}">
+            <b>${d.user}</b>: ${d.text}
+          </div>`;
+      }
+    });
+    box.scrollTop = box.scrollHeight;
+  });
+}
+
+/* ===== SEND TEXT ===== */
+window.send = async ()=>{
+  if(!me) return alert("Login dulu");
+  const text = msg.value.trim();
+  if(!text) return;
+
+  await addDoc(collection(db,"chats"),{
+    user: me.displayName,
+    uid: me.uid,
+    text,
+    type:"text",
+    time: serverTimestamp()
+  });
+  msg.value="";
+};
+
+/* ===== SEND IMAGE ===== */
+img.onchange = async ()=>{
+  if(!me) return;
+  const file = img.files[0];
+  if(!file) return;
+
+  const r = ref(storage,"chat/"+Date.now()+"_"+file.name);
+  await uploadBytes(r,file);
+  const url = await getDownloadURL(r);
+
+  await addDoc(collection(db,"chats"),{
+    user: me.displayName,
+    uid: me.uid,
+    text:url,
+    type:"img",
+    time: serverTimestamp()
+  });
+};
+</script>
+
+</body>
+</html>
