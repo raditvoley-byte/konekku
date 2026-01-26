@@ -3,68 +3,169 @@
 <head>
 <meta charset="UTF-8">
 <title>KONEKKU • Hacker Chat</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
 *{box-sizing:border-box}
-body{
-  margin:0;
-  font-family:Consolas,monospace;
-  background:#020617;
-  color:#00ff9c;
+body{margin:0;font-family:monospace;background:#000;color:#00ff99}
+button,input{font-family:monospace}
+
+.hidden{display:none}
+header{padding:10px;border-bottom:1px solid #00ff99;display:flex;justify-content:space-between}
+#login{height:100vh;display:flex;justify-content:center;align-items:center}
+.box{border:2px solid #00ff99;padding:25px;box-shadow:0 0 30px #00ff99;text-align:center}
+
+#app{height:100vh;display:flex}
+#users{width:30%;border-right:1px solid #00ff99;overflow:auto}
+#users div{padding:8px;border-bottom:1px solid #022}
+#users div:hover{background:#022;cursor:pointer}
+
+#chatBox{flex:1;display:flex;flex-direction:column}
+#messages{flex:1;overflow:auto;padding:10px}
+.msg{margin-bottom:6px}
+.me{color:#38bdf8}
+
+#input{display:flex;border-top:1px solid #00ff99}
+#input input{flex:1;background:black;border:none;color:#00ff99;padding:10px}
+#input button{background:black;color:#00ff99;border:1px solid #00ff99}
+
+.voice{font-size:12px;color:#22d3ee}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="box">
+    <h2>KONEKKU</h2>
+    <button id="loginBtn">LOGIN GOOGLE</button>
+    <p style="font-size:11px">* wajib https</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <div id="users"></div>
+
+  <div id="chatBox">
+    <header>
+      <span id="chatWith">GLOBAL</span>
+      <div>
+        <button onclick="startVoice()">🎤</button>
+        <button onclick="logout()">⏻</button>
+      </div>
+    </header>
+
+    <div id="messages"></div>
+
+    <div id="input">
+      <input id="text" placeholder="ketik pesan">
+      <button onclick="send()">➤</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 🔥 FIREBASE KAMU
+const firebaseConfig = {
+  apiKey: "AIzaSyDdD92BTyFSd2xcouL6G9h92SNha99C7dY",
+  authDomain: "konekku-e391f.firebaseapp.com",
+  databaseURL: "https://konekku-e391f-default-rtdb.firebaseio.com",
+  projectId: "konekku-e391f",
+  storageBucket: "konekku-e391f.appspot.com",
+  messagingSenderId: "329115673192",
+  appId: "1:329115673192:web:4504a9952dfc687bac51dd"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();
+const db=firebase.database();
+
+let me=null;
+let currentChat="global";
+
+// LOGIN
+loginBtn.onclick=()=>{
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+};
+
+auth.onAuthStateChanged(u=>{
+  if(!u) return;
+  me=u;
+  login.classList.add("hidden");
+  app.classList.remove("hidden");
+
+  db.ref("users/"+u.uid).set({name:u.displayName,online:true});
+
+  loadUsers();
+  loadChat();
+});
+
+// USERS (PRIVATE CHAT)
+function loadUsers(){
+  db.ref("users").on("value",s=>{
+    users.innerHTML="";
+    s.forEach(u=>{
+      if(u.key===me.uid) return;
+      const d=document.createElement("div");
+      d.innerText="🟢 "+u.val().name;
+      d.onclick=()=>{
+        currentChat="dm_"+[me.uid,u.key].sort().join("_");
+        chatWith.innerText=u.val().name;
+        messages.innerHTML="";
+        loadChat();
+      };
+      users.appendChild(d);
+    });
+  });
 }
-header{
-  background:#000;
-  padding:14px;
-  text-align:center;
-  box-shadow:0 0 20px #00ff9c33;
+
+// CHAT
+function loadChat(){
+  db.ref("chats/"+currentChat).off();
+  db.ref("chats/"+currentChat).limitToLast(100).on("child_added",s=>{
+    const m=s.val();
+    const div=document.createElement("div");
+    div.className="msg"+(m.uid===me.uid?" me":"");
+    div.innerText=m.name+": "+m.text;
+    messages.appendChild(div);
+    messages.scrollTop=messages.scrollHeight;
+  });
 }
-header b{font-size:18px}
-#status{
-  font-size:12px;
-  color:#7fffd4;
+
+function send(){
+  if(!text.value) return;
+  db.ref("chats/"+currentChat).push({
+    uid:me.uid,
+    name:me.displayName,
+    text:text.value
+  });
+  text.value="";
 }
-#users{
-  display:flex;
-  gap:8px;
-  padding:8px;
-  overflow-x:auto;
-  border-bottom:1px solid #00ff9c33;
+
+// VOICE (basic)
+async function startVoice(){
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  const audio=document.createElement("audio");
+  audio.srcObject=stream;
+  audio.autoplay=true;
+  messages.innerHTML+="<div class='voice'>🎤 Voice aktif (lokal)</div>";
 }
-.user{
-  padding:6px 10px;
-  border:1px solid #00ff9c55;
-  border-radius:6px;
-  cursor:pointer;
-  white-space:nowrap;
+
+// LOGOUT
+function logout(){
+  db.ref("users/"+me.uid).remove();
+  auth.signOut();
+  location.reload();
 }
-.user.online{box-shadow:0 0 10px #00ff9c}
-#messages{
-  height:55vh;
-  overflow:auto;
-  padding:12px;
-}
-.msg{
-  margin-bottom:10px;
-  padding:8px;
-  border:1px solid #00ff9c44;
-  border-radius:6px;
-}
-.me{background:#003b2f}
-footer{
-  display:flex;
-  gap:6px;
-  padding:10px;
-  border-top:1px solid #00ff9c33;
-}
-input,button{
-  background:#000;
-  color:#00ff9c;
-  border:1px solid #00ff9c55;
-  padding:10px;
-}
-button{cursor:pointer}
-audio{width:100%;margin-top:6px}
+</script>
+
+</body>
+</html>audio{width:100%;margin-top:6px}
 
 /* POPUP */
 .popup{
