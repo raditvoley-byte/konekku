@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>KONEKKU • Hacker Chat</title>
+<title>KONEKKU</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -11,31 +11,69 @@
 
 <style>
 *{box-sizing:border-box}
-body{margin:0;font-family:monospace;background:#000;color:#00ff99}
-button,input{font-family:monospace}
-
+body{
+  margin:0;
+  font-family:monospace;
+  background:#000;
+  color:#00ff99;
+  height:100vh;
+}
 .hidden{display:none}
-header{padding:10px;border-bottom:1px solid #00ff99;display:flex;justify-content:space-between}
-#login{height:100vh;display:flex;justify-content:center;align-items:center}
-.box{border:2px solid #00ff99;padding:25px;box-shadow:0 0 30px #00ff99;text-align:center}
 
-#app{height:100vh;display:flex}
-#users{width:30%;border-right:1px solid #00ff99;overflow:auto}
-#users div{padding:8px;border-bottom:1px solid #022}
-#users div:hover{background:#022;cursor:pointer}
+/* LOGIN */
+#login{
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+.box{
+  border:2px solid #00ff99;
+  padding:25px;
+  box-shadow:0 0 25px #00ff99;
+  text-align:center;
+}
+button{
+  background:black;
+  color:#00ff99;
+  border:1px solid #00ff99;
+  padding:10px 14px;
+}
 
-#chatBox{flex:1;display:flex;flex-direction:column}
-#messages{flex:1;overflow:auto;padding:10px}
+/* APP */
+#app{height:100vh;display:flex;flex-direction:column}
+
+/* HEADER */
+header{
+  padding:10px;
+  border-bottom:1px solid #00ff99;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+/* MENU */
+#menu{
+  display:flex;
+  justify-content:space-around;
+  border-bottom:1px solid #00ff99;
+}
+#menu button{flex:1}
+
+/* CONTENT */
+.section{
+  flex:1;
+  overflow:auto;
+  padding:10px;
+}
+
+/* CHAT */
 .msg{margin-bottom:6px}
 .me{color:#38bdf8}
-
-#input{display:flex;border-top:1px solid #00ff99}
-#input input{flex:1;background:black;border:none;color:#00ff99;padding:10px}
-#input button{background:black;color:#00ff99;border:1px solid #00ff99}
-
-.voice{font-size:12px;color:#22d3ee}
+input{width:100%;padding:10px;background:black;border:1px solid #00ff99;color:#00ff99}
 </style>
 </head>
+
 <body>
 
 <!-- LOGIN -->
@@ -43,28 +81,129 @@ header{padding:10px;border-bottom:1px solid #00ff99;display:flex;justify-content
   <div class="box">
     <h2>KONEKKU</h2>
     <button id="loginBtn">LOGIN GOOGLE</button>
-    <p style="font-size:11px">* wajib https</p>
   </div>
 </div>
 
 <!-- APP -->
 <div id="app" class="hidden">
-  <div id="users"></div>
 
-  <div id="chatBox">
-    <header>
-      <span id="chatWith">GLOBAL</span>
-      <div>
-        <button onclick="startVoice()">🎤</button>
-        <button onclick="logout()">⏻</button>
-      </div>
-    </header>
+<header>
+  <span id="userName"></span>
+  <button onclick="logout()">LOGOUT</button>
+</header>
 
-    <div id="messages"></div>
+<div id="menu">
+  <button onclick="openTab('profile')">👤 Profil</button>
+  <button onclick="openTab('status')">🟢 Status</button>
+  <button onclick="openTab('public')">💬 Publik</button>
+  <button onclick="openTab('private')">🔒 Privat</button>
+</div>
 
-    <div id="input">
-      <input id="text" placeholder="ketik pesan">
-      <button onclick="send()">➤</button>
+<!-- PROFIL -->
+<div id="profile" class="section hidden">
+  <h3>Profil</h3>
+  <input id="nameEdit" placeholder="Nama">
+  <button onclick="saveProfile()">Simpan</button>
+</div>
+
+<!-- STATUS -->
+<div id="status" class="section hidden">
+  <h3>Status</h3>
+  <input id="statusEdit" placeholder="Status kamu">
+  <button onclick="saveStatus()">Simpan</button>
+</div>
+
+<!-- CHAT PUBLIK -->
+<div id="public" class="section hidden">
+  <div id="publicMsg"></div>
+  <input id="publicText" placeholder="Pesan publik" onkeydown="if(event.key=='Enter')sendPublic()">
+</div>
+
+<!-- CHAT PRIVAT -->
+<div id="private" class="section hidden">
+  <p>Pilih user di versi lanjut</p>
+</div>
+
+</div>
+
+<script>
+// FIREBASE
+firebase.initializeApp({
+  apiKey: "AIzaSyDdD92BTyFSd2xcouL6G9h92SNha99C7dY",
+  authDomain: "konekku-e391f.firebaseapp.com",
+  databaseURL: "https://konekku-e391f-default-rtdb.firebaseio.com",
+  projectId: "konekku-e391f",
+  storageBucket: "konekku-e391f.appspot.com",
+  messagingSenderId: "329115673192",
+  appId: "1:329115673192:web:4504a9952dfc687bac51dd"
+});
+
+const auth=firebase.auth();
+const db=firebase.database();
+let me=null;
+
+// LOGIN
+loginBtn.onclick=()=>{
+  auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+};
+
+auth.getRedirectResult();
+auth.onAuthStateChanged(u=>{
+  if(!u) return;
+  me=u;
+  login.classList.add("hidden");
+  app.classList.remove("hidden");
+  userName.innerText=u.displayName;
+
+  db.ref("users/"+u.uid).once("value",s=>{
+    if(s.exists()){
+      nameEdit.value=s.val().name;
+      statusEdit.value=s.val().status||"";
+    }
+  });
+});
+
+// MENU
+function openTab(id){
+  document.querySelectorAll(".section").forEach(s=>s.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+}
+
+// PROFIL
+function saveProfile(){
+  db.ref("users/"+me.uid+"/name").set(nameEdit.value);
+  userName.innerText=nameEdit.value;
+}
+function saveStatus(){
+  db.ref("users/"+me.uid+"/status").set(statusEdit.value);
+}
+
+// PUBLIC CHAT
+db.ref("public").limitToLast(50).on("child_added",s=>{
+  const m=s.val();
+  const d=document.createElement("div");
+  d.className="msg"+(m.uid===me.uid?" me":"");
+  d.innerText=m.name+": "+m.text;
+  publicMsg.appendChild(d);
+});
+function sendPublic(){
+  db.ref("public").push({
+    uid:me.uid,
+    name:me.displayName,
+    text:publicText.value
+  });
+  publicText.value="";
+}
+
+// LOGOUT
+function logout(){
+  auth.signOut();
+  location.reload();
+}
+</script>
+
+</body>
+</html>      <button onclick="send()">➤</button>
     </div>
   </div>
 </div>
