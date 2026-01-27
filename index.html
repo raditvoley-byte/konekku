@@ -2,13 +2,11 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Catur Online Firebase</title>
+<title>Catur Online Full Engine</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <style>
 body{
-  margin:0;
-  background:#0f172a;
+  background:#020617;
   color:white;
   font-family:Arial;
   display:flex;
@@ -17,69 +15,57 @@ body{
 }
 h2{margin:10px}
 
-#menu{
-  margin:10px;
-}
+#menu{margin:10px}
 input,button{
   padding:8px;
   margin:4px;
   border:none;
   border-radius:6px;
 }
-button{
-  background:#2563eb;
-  color:white;
-  cursor:pointer;
-}
-button:hover{opacity:.8}
+button{background:#2563eb;color:white;cursor:pointer}
 
-#status{
-  margin:6px;
-  font-size:14px;
-  opacity:.9;
+#roomInfo{
+  display:none;
+  background:#020617;
+  border:1px solid #22c55e;
+  padding:8px 14px;
+  border-radius:8px;
+  margin-bottom:10px;
 }
 
 #board{
-  width:320px;
-  height:320px;
+  width:420px;
+  height:420px;
   display:grid;
   grid-template-columns:repeat(8,1fr);
-  border:4px solid #fff;
+  border:6px solid white;
+  box-shadow:0 0 20px #22c55e;
 }
 
 .square{
-  width:40px;
-  height:40px;
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:26px;
+  font-size:36px;
   cursor:pointer;
   user-select:none;
 }
-.light{background:#e5e7eb}
+.light{background:#f8fafc}
 .dark{background:#4ade80}
-
-.selected{
-  outline:3px solid red;
-}
-.turn{
-  color:#22c55e;
-}
+.selected{outline:4px solid red}
 </style>
 </head>
-
 <body>
 
-<h2>♟️ Catur Online</h2>
+<h2>♟️ Catur Online – Full Engine</h2>
 
 <div id="menu">
-  <input id="room" placeholder="Kode Room">
-  <button onclick="buatRoom()">Buat Room</button>
-  <button onclick="gabungRoom()">Gabung</button>
+  <input id="roomInput" placeholder="Kode Room">
+  <button id="buat">Buat Room</button>
+  <button id="gabung">Gabung</button>
 </div>
 
-<div id="status">Belum terhubung</div>
+<div id="roomInfo"></div>
 <div id="board"></div>
 
 <script type="module">
@@ -88,120 +74,161 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebas
 import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot }
 from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDdD92BTyFSd2xcouL6G9h92SNha99C7dY",
-  authDomain: "konekku-e391f.firebaseapp.com",
-  projectId: "konekku-e391f",
-};
-
-const app = initializeApp(firebaseConfig);
+const app = initializeApp({
+  apiKey:"AIzaSyDdD92BTyFSd2xcouL6G9h92SNha99C7dY",
+  authDomain:"konekku-e391f.firebaseapp.com",
+  projectId:"konekku-e391f"
+});
 const db = getFirestore(app);
 
-/* ================= GAME ================= */
-const boardEl = document.getElementById("board");
-const statusEl = document.getElementById("status");
+/* ================= STATE ================= */
+const boardEl=document.getElementById("board");
+const roomInfo=document.getElementById("roomInfo");
 
-let roomRef;
-let warna = "";
-let state = null;
-let selected = null;
+let roomRef=null;
+let playerColor="";
+let state=null;
+let selected=null;
 
-const ikon = {
-  r:"♜", n:"♞", b:"♝", q:"♛", k:"♚", p:"♟",
-  R:"♖", N:"♘", B:"♗", Q:"♕", K:"♔", P:"♙"
+const ICON={
+  r:"♜",n:"♞",b:"♝",q:"♛",k:"♚",p:"♟",
+  R:"♖",N:"♘",B:"♗",Q:"♕",K:"♔",P:"♙"
 };
 
-function papanAwal(){
+/* ================= BOARD ================= */
+function startBoard(){
   return [
-    "rnbqkbnr",
-    "pppppppp",
-    "........",
-    "........",
-    "........",
-    "........",
-    "PPPPPPPP",
-    "RNBQKBNR"
+    ["r","n","b","q","k","b","n","r"],
+    ["p","p","p","p","p","p","p","p"],
+    [".",".",".",".",".",".",".","."],
+    [".",".",".",".",".",".",".","."],
+    [".",".",".",".",".",".",".","."],
+    [".",".",".",".",".",".",".","."],
+    ["P","P","P","P","P","P","P","P"],
+    ["R","N","B","Q","K","B","N","R"]
   ];
 }
 
+/* ================= ENGINE ================= */
+function isWhite(p){return p===p.toUpperCase()}
+function inBoard(x,y){return x>=0&&x<8&&y>=0&&y<8}
+
+function generateMoves(x,y){
+  const p=state.board[y][x];
+  const moves=[];
+  const dir=isWhite(p)?-1:1;
+
+  if(p.toLowerCase()=="p"){
+    if(inBoard(x,y+dir)&&state.board[y+dir][x]==".")
+      moves.push([x,y+dir]);
+  }
+  if(p.toLowerCase()=="r"||p.toLowerCase()=="q"){
+    [[1,0],[-1,0],[0,1],[0,-1]].forEach(d=>{
+      let nx=x+d[0],ny=y+d[1];
+      while(inBoard(nx,ny)){
+        if(state.board[ny][nx]==".") moves.push([nx,ny]);
+        else{ if(isWhite(p)!=isWhite(state.board[ny][nx])) moves.push([nx,ny]); break;}
+        nx+=d[0]; ny+=d[1];
+      }
+    });
+  }
+  if(p.toLowerCase()=="b"||p.toLowerCase()=="q"){
+    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(d=>{
+      let nx=x+d[0],ny=y+d[1];
+      while(inBoard(nx,ny)){
+        if(state.board[ny][nx]==".") moves.push([nx,ny]);
+        else{ if(isWhite(p)!=isWhite(state.board[ny][nx])) moves.push([nx,ny]); break;}
+        nx+=d[0]; ny+=d[1];
+      }
+    });
+  }
+  if(p.toLowerCase()=="n"){
+    [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]]
+    .forEach(d=>{
+      const nx=x+d[0],ny=y+d[1];
+      if(inBoard(nx,ny)&&(state.board[ny][nx]=="."||isWhite(p)!=isWhite(state.board[ny][nx])))
+        moves.push([nx,ny]);
+    });
+  }
+  if(p.toLowerCase()=="k"){
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+      if(dx||dy){
+        const nx=x+dx,ny=y+dy;
+        if(inBoard(nx,ny)&&(state.board[ny][nx]=="."||isWhite(p)!=isWhite(state.board[ny][nx])))
+          moves.push([nx,ny]);
+      }
+    }
+  }
+  return moves;
+}
+
+/* ================= UI ================= */
 function render(){
   boardEl.innerHTML="";
-  state.board.forEach((row,y)=>{
-    [...row].forEach((p,x)=>{
+  for(let y=0;y<8;y++){
+    for(let x=0;x<8;x++){
       const d=document.createElement("div");
       d.className="square "+((x+y)%2?"dark":"light");
-      if(selected && selected.x===x && selected.y===y){
-        d.classList.add("selected");
-      }
-      d.textContent=ikon[p]||"";
-      d.onclick=()=>klik(x,y);
+      if(selected&&selected.x===x&&selected.y===y)d.classList.add("selected");
+      d.textContent=ICON[state.board[y][x]]||"";
+      d.onclick=()=>click(x,y);
       boardEl.appendChild(d);
-    });
-  });
-
-  statusEl.innerHTML = `
-    Room: <b>${state.room}</b> |
-    Kamu: <b>${warna}</b> |
-    Giliran: <span class="turn">${state.turn}</span>
-  `;
+    }
+  }
 }
 
-function milikKita(p){
-  return warna==="white" ? p===p.toUpperCase() : p===p.toLowerCase();
-}
-
-function klik(x,y){
-  if(state.turn!==warna) return;
-
-  const p = state.board[y][x];
+function click(x,y){
+  if(state.turn!==playerColor)return;
+  const p=state.board[y][x];
   if(selected){
-    jalan(selected.x,selected.y,x,y);
+    if(generateMoves(selected.x,selected.y).some(m=>m[0]==x&&m[1]==y)){
+      move(selected.x,selected.y,x,y);
+    }
     selected=null;
-  }else if(p!=="." && milikKita(p)){
+  }else if(p!="."&&(playerColor=="white"?isWhite(p):!isWhite(p))){
     selected={x,y};
   }
 }
 
-async function jalan(x1,y1,x2,y2){
-  let b = state.board.map(r=>r.split(""));
+async function move(x1,y1,x2,y2){
+  const b=state.board.map(r=>r.slice());
   b[y2][x2]=b[y1][x1];
   b[y1][x1]=".";
-  state.board=b.map(r=>r.join(""));
-  state.turn = state.turn==="white"?"black":"white";
+  if(b[y2][x2]=="P"&&y2==0)b[y2][x2]="Q";
+  if(b[y2][x2]=="p"&&y2==7)b[y2][x2]="q";
+  state.board=b;
+  state.turn=state.turn=="white"?"black":"white";
   await updateDoc(roomRef,state);
 }
 
 /* ================= ROOM ================= */
-window.buatRoom = async ()=>{
+document.getElementById("buat").onclick=async()=>{
   const id=Math.random().toString(36).substr(2,6);
   roomRef=doc(db,"chess",id);
-  await setDoc(roomRef,{
-    room:id,
-    board:papanAwal(),
-    turn:"white",
-    players:1
-  });
-  warna="white";
+  await setDoc(roomRef,{board:startBoard(),turn:"white",room:id});
+  playerColor="white";
+  roomInfo.style.display="block";
+  roomInfo.innerHTML="Room ID: <b>"+id+"</b>";
   listen();
 };
 
-window.gabungRoom = async ()=>{
-  const id=document.getElementById("room").value;
+document.getElementById("gabung").onclick=async()=>{
+  const id=document.getElementById("roomInput").value;
   roomRef=doc(db,"chess",id);
-  const snap=await getDoc(roomRef);
-  if(!snap.exists()) return alert("Room tidak ada");
-  warna="black";
-  await updateDoc(roomRef,{players:2});
+  const s=await getDoc(roomRef);
+  if(!s.exists())return alert("Room tidak ada");
+  playerColor="black";
+  roomInfo.style.display="block";
+  roomInfo.innerHTML="Room ID: <b>"+id+"</b>";
   listen();
 };
 
 function listen(){
-  onSnapshot(roomRef,(snap)=>{
-    state=snap.data();
+  onSnapshot(roomRef,s=>{
+    state=s.data();
     render();
   });
 }
 </script>
-
 </body>
 </html>
