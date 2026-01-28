@@ -1,234 +1,207 @@
-<!DOCTYPE html>
-<html lang="id">
+<!DOCTYPE html><html lang="id">
 <head>
-<meta charset="UTF-8">
-<title>Catur Online Full Engine</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body{
-  background:#020617;
-  color:white;
-  font-family:Arial;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-}
-h2{margin:10px}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tebak Angka Super HD</title>  <!-- Firebase -->  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-#menu{margin:10px}
-input,button{
-  padding:8px;
-  margin:4px;
-  border:none;
-  border-radius:6px;
-}
-button{background:#2563eb;color:white;cursor:pointer}
+    // 🔥 Firebase milik kamu (sesuai yg pernah kamu kirim)
+    const firebaseConfig = {
+      apiKey: "ISI_API_KEY_KAMU",
+      authDomain: "ISI_AUTH_DOMAIN",
+      projectId: "ISI_PROJECT_ID",
+      storageBucket: "ISI_STORAGE",
+      messagingSenderId: "ISI_SENDER_ID",
+      appId: "ISI_APP_ID"
+    };
 
-#roomInfo{
-  display:none;
-  background:#020617;
-  border:1px solid #22c55e;
-  padding:8px 14px;
-  border-radius:8px;
-  margin-bottom:10px;
-}
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-#board{
-  width:420px;
-  height:420px;
-  display:grid;
-  grid-template-columns:repeat(8,1fr);
-  border:6px solid white;
-  box-shadow:0 0 20px #22c55e;
-}
+    // 🔊 Sound effect
+    const soundWin = new Audio('https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg');
 
-.square{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:36px;
-  cursor:pointer;
-  user-select:none;
-}
-.light{background:#f8fafc}
-.dark{background:#4ade80}
-.selected{outline:4px solid red}
-</style>
-</head>
+    let userId;
+    let angkaRahasia = Math.floor(Math.random() * 100) + 1;
+    let percobaan = 0;
+
+    const rankText = (score) => {
+      if (score <= 3) return "Legendary";
+      if (score <= 5) return "Profesional";
+      if (score <= 8) return "Pro";
+      if (score <= 12) return "Amatir";
+      return "Pemula";
+    };
+
+    const badgeForRank = (rank) => {
+      if (rank === 'Legendary') return '👑 LEGENDARY BADGE';
+      if (rank === 'Profesional') return '💎 PRO BADGE';
+      if (rank === 'Pro') return '🔥 PRO';
+      if (rank === 'Amatir') return '⚔️ AMATIR';
+      return '🎮 PEMULA';
+    };
+      if (score <= 3) return "Legendary";
+      if (score <= 5) return "Profesional";
+      if (score <= 8) return "Pro";
+      if (score <= 12) return "Amatir";
+      return "Pemula";
+    };
+
+    window.onload = async () => {
+      // splash animation
+      let p = 0;
+      const bar = document.getElementById('bar');
+      const splash = document.getElementById('splash');
+      const timer = setInterval(() => {
+        p += 5; bar.style.width = p + '%';
+        if (p >= 100) { clearInterval(timer); splash.style.display = 'none'; }
+      }, 50);
+
+      const user = await signInAnonymously(auth);
+      userId = user.user.uid;
+
+      const ref = doc(db, "profiles", userId);
+      const snap = await getDoc(ref);
+
+      if (snap.exists()) {
+        document.getElementById("username").value = snap.data().name;
+        document.getElementById("topskor").innerText = snap.data().best || "-";
+      }
+    };
+
+    window.tebak = async () => {
+      const input = Number(document.getElementById("input").value);
+      if (!input || input < 1 || input > 100) return;
+      const input = document.getElementById("input").value;
+      if (!input) return;
+
+      percobaan++;
+      const info = document.getElementById("info");
+
+      if (input > angkaRahasia) {
+        info.innerText = "📉 Terlalu besar!";
+      } else if (input < angkaRahasia) {
+        info.innerText = "📈 Terlalu kecil!";
+      } else {
+        const rank = rankText(percobaan);
+        soundWin.play();
+        const badge = badgeForRank(rank);
+        info.innerHTML = `🎉 BENAR!<br>Percobaan: ${percobaan}<br>Rank: <b>${rank}</b><br><span style="color:gold">${badge}</span>`;
+
+        const name = document.getElementById("username").value || "Player";
+        const ref = doc(db, "profiles", userId);
+        await setDoc(ref, { name, best: percobaan, rank }, { merge:true });
+      }
+    };
+
+    window.resetGame = () => {
+      angkaRahasia = Math.floor(Math.random() * 100) + 1;
+      percobaan = 0;
+      document.getElementById("info").innerText = "Game di-reset!";
+      document.getElementById("input").value = "";
+    };
+  </script>  <style>
+    * {
+      font-family: 'Segoe UI', sans-serif;
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #0f2027, #000);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+    }
+    .card {
+      width: 420px;
+      padding: 30px;
+      border-radius: 25px;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(20px);
+      box-shadow: 0 0 60px rgba(0,255,255,0.25);
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 10px;
+      font-size: 28px;
+      text-shadow: 0 0 15px cyan;
+    }
+    input {
+      width: 100%;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 12px;
+      border: none;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 15px;
+      margin-top: 10px;
+      border-radius: 12px;
+      border: none;
+      font-size: 16px;
+      font-weight: bold;
+      background: linear-gradient(90deg, cyan, lime);
+      cursor: pointer;
+    }
+    .info {
+      margin-top: 15px;
+      font-size: 18px;
+      min-height: 50px;
+    }
+    .profile {
+      margin-bottom: 15px;
+      font-size: 14px;
+      opacity: .9;
+    }
+      .leaderboard {
+      margin-top: 20px;
+      text-align: left;
+      font-size: 14px;
+      background: rgba(0,0,0,0.3);
+      padding: 15px;
+      border-radius: 15px;
+    }
+    .leaderboard h3 { margin-top: 0; text-align:center; }
+    .lb-item { display:flex; justify-content:space-between; }
+    .avatar {
+      width:60px;height:60px;border-radius:50%;
+      margin:auto;display:block;
+      box-shadow:0 0 15px cyan;
+    }
+    audio { display:none; }
+  </style></head>
 <body>
-
-<h2>♟️ Catur Online – Full Engine</h2>
-
-<div id="menu">
-  <input id="roomInput" placeholder="Kode Room">
-  <button id="buat">Buat Room</button>
-  <button id="gabung">Gabung</button>
+  <!-- Splash Screen -->
+  <div id="splash" style="position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:9999;">
+    <h1 style="color:cyan;text-shadow:0 0 20px cyan;">🎯 Tebak Angka</h1>
+    <p style="opacity:.8">Loading game...</p>
+    <div style="width:200px;height:6px;background:#222;border-radius:10px;overflow:hidden;">
+      <div id="bar" style="width:0%;height:100%;background:linear-gradient(90deg,cyan,lime);"></div>
+    </div>
+  </div>  <div class="card">
+    <h1>🎯 Tebak Angka 1-100</h1><div class="profile">
+  <input id="username" placeholder="Nama kamu" />
+  🏆 Top Skor: <span id="topskor">-</span>
 </div>
 
-<div id="roomInfo"></div>
-<div id="board"></div>
+<input id="input" type="number" placeholder="Masukkan angka 1-100" />
+<button onclick="tebak()">TEBAK</button>
+<button onclick="resetGame()">RESET</button>
 
-<script type="module">
-/* ================= FIREBASE ================= */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot }
-from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+<div class="info" id="info">Mulai menebak 🎮</div>
 
-const app = initializeApp({
-  apiKey:"AIzaSyDdD92BTyFSd2xcouL6G9h92SNha99C7dY",
-  authDomain:"konekku-e391f.firebaseapp.com",
-  projectId:"konekku-e391f"
-});
-const db = getFirestore(app);
+<div class="leaderboard">
+  <h3>🌍 Leaderboard (Lokal)</h3>
+  <div class="lb-item"><span>🥇 Kamu</span><span id="lb-score">-</span></div>
+</div>
 
-/* ================= STATE ================= */
-const boardEl=document.getElementById("board");
-const roomInfo=document.getElementById("roomInfo");
-
-let roomRef=null;
-let playerColor="";
-let state=null;
-let selected=null;
-
-const ICON={
-  r:"♜",n:"♞",b:"♝",q:"♛",k:"♚",p:"♟",
-  R:"♖",N:"♘",B:"♗",Q:"♕",K:"♔",P:"♙"
-};
-
-/* ================= BOARD ================= */
-function startBoard(){
-  return [
-    ["r","n","b","q","k","b","n","r"],
-    ["p","p","p","p","p","p","p","p"],
-    [".",".",".",".",".",".",".","."],
-    [".",".",".",".",".",".",".","."],
-    [".",".",".",".",".",".",".","."],
-    [".",".",".",".",".",".",".","."],
-    ["P","P","P","P","P","P","P","P"],
-    ["R","N","B","Q","K","B","N","R"]
-  ];
-}
-
-/* ================= ENGINE ================= */
-function isWhite(p){return p===p.toUpperCase()}
-function inBoard(x,y){return x>=0&&x<8&&y>=0&&y<8}
-
-function generateMoves(x,y){
-  const p=state.board[y][x];
-  const moves=[];
-  const dir=isWhite(p)?-1:1;
-
-  if(p.toLowerCase()=="p"){
-    if(inBoard(x,y+dir)&&state.board[y+dir][x]==".")
-      moves.push([x,y+dir]);
-  }
-  if(p.toLowerCase()=="r"||p.toLowerCase()=="q"){
-    [[1,0],[-1,0],[0,1],[0,-1]].forEach(d=>{
-      let nx=x+d[0],ny=y+d[1];
-      while(inBoard(nx,ny)){
-        if(state.board[ny][nx]==".") moves.push([nx,ny]);
-        else{ if(isWhite(p)!=isWhite(state.board[ny][nx])) moves.push([nx,ny]); break;}
-        nx+=d[0]; ny+=d[1];
-      }
-    });
-  }
-  if(p.toLowerCase()=="b"||p.toLowerCase()=="q"){
-    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(d=>{
-      let nx=x+d[0],ny=y+d[1];
-      while(inBoard(nx,ny)){
-        if(state.board[ny][nx]==".") moves.push([nx,ny]);
-        else{ if(isWhite(p)!=isWhite(state.board[ny][nx])) moves.push([nx,ny]); break;}
-        nx+=d[0]; ny+=d[1];
-      }
-    });
-  }
-  if(p.toLowerCase()=="n"){
-    [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]]
-    .forEach(d=>{
-      const nx=x+d[0],ny=y+d[1];
-      if(inBoard(nx,ny)&&(state.board[ny][nx]=="."||isWhite(p)!=isWhite(state.board[ny][nx])))
-        moves.push([nx,ny]);
-    });
-  }
-  if(p.toLowerCase()=="k"){
-    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
-      if(dx||dy){
-        const nx=x+dx,ny=y+dy;
-        if(inBoard(nx,ny)&&(state.board[ny][nx]=="."||isWhite(p)!=isWhite(state.board[ny][nx])))
-          moves.push([nx,ny]);
-      }
-    }
-  }
-  return moves;
-}
-
-/* ================= UI ================= */
-function render(){
-  boardEl.innerHTML="";
-  for(let y=0;y<8;y++){
-    for(let x=0;x<8;x++){
-      const d=document.createElement("div");
-      d.className="square "+((x+y)%2?"dark":"light");
-      if(selected&&selected.x===x&&selected.y===y)d.classList.add("selected");
-      d.textContent=ICON[state.board[y][x]]||"";
-      d.onclick=()=>click(x,y);
-      boardEl.appendChild(d);
-    }
-  }
-}
-
-function click(x,y){
-  if(state.turn!==playerColor)return;
-  const p=state.board[y][x];
-  if(selected){
-    if(generateMoves(selected.x,selected.y).some(m=>m[0]==x&&m[1]==y)){
-      move(selected.x,selected.y,x,y);
-    }
-    selected=null;
-  }else if(p!="."&&(playerColor=="white"?isWhite(p):!isWhite(p))){
-    selected={x,y};
-  }
-}
-
-async function move(x1,y1,x2,y2){
-  const b=state.board.map(r=>r.slice());
-  b[y2][x2]=b[y1][x1];
-  b[y1][x1]=".";
-  if(b[y2][x2]=="P"&&y2==0)b[y2][x2]="Q";
-  if(b[y2][x2]=="p"&&y2==7)b[y2][x2]="q";
-  state.board=b;
-  state.turn=state.turn=="white"?"black":"white";
-  await updateDoc(roomRef,state);
-}
-
-/* ================= ROOM ================= */
-document.getElementById("buat").onclick=async()=>{
-  const id=Math.random().toString(36).substr(2,6);
-  roomRef=doc(db,"chess",id);
-  await setDoc(roomRef,{board:startBoard(),turn:"white",room:id});
-  playerColor="white";
-  roomInfo.style.display="block";
-  roomInfo.innerHTML="Room ID: <b>"+id+"</b>";
-  listen();
-};
-
-document.getElementById("gabung").onclick=async()=>{
-  const id=document.getElementById("roomInput").value;
-  roomRef=doc(db,"chess",id);
-  const s=await getDoc(roomRef);
-  if(!s.exists())return alert("Room tidak ada");
-  playerColor="black";
-  roomInfo.style.display="block";
-  roomInfo.innerHTML="Room ID: <b>"+id+"</b>";
-  listen();
-};
-
-function listen(){
-  onSnapshot(roomRef,s=>{
-    state=s.data();
-    render();
-  });
-}
-</script>
+  </div>
 </body>
 </html>
