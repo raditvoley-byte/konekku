@@ -3,144 +3,49 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tebak Angka Super HD</title>  <!-- Firebase -->  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    // ================================
+    // CORE GAME ONLY (STABLE VERSION)
+    // ================================
 
-    // 🔥 Firebase milik kamu (sesuai yg pernah kamu kirim)
-    const firebaseConfig = {
-      apiKey: "ISI_API_KEY_KAMU",
-      authDomain: "ISI_AUTH_DOMAIN",
-      projectId: "ISI_PROJECT_ID",
-      storageBucket: "ISI_STORAGE",
-      messagingSenderId: "ISI_SENDER_ID",
-      appId: "ISI_APP_ID"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    // 🔊 Sound effect
-    const soundWin = new Audio('https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg');
-
-    let userId;
     let angkaRahasia = Math.floor(Math.random() * 100) + 1;
     let percobaan = 0;
 
-    const rankText = (score) => {
-      if (score <= 3) return "Legendary";
-      if (score <= 5) return "Profesional";
-      if (score <= 8) return "Pro";
-      if (score <= 12) return "Amatir";
-      return "Pemula";
-    };
-
-    const badgeForRank = (rank) => {
-      if (rank === 'Legendary') return '👑 LEGENDARY BADGE';
-      if (rank === 'Profesional') return '💎 PRO BADGE';
-      if (rank === 'Pro') return '🔥 PRO';
-      if (rank === 'Amatir') return '⚔️ AMATIR';
-      return '🎮 PEMULA';
-    };
-      if (score <= 3) return "Legendary";
-      if (score <= 5) return "Profesional";
-      if (score <= 8) return "Pro";
-      if (score <= 12) return "Amatir";
-      return "Pemula";
-    };
-
-    window.addEventListener('DOMContentLoaded', async () => {
-      // === FIREBASE INIT TANPA LOADING ===
-      const user = await signInAnonymously(auth);
-      userId = user.user.uid;
-
-      const ref = doc(db, 'profiles', userId);
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        document.getElementById('showName').innerText = snap.data().name || 'Player';
-        document.getElementById('topskor').innerText = snap.data().best || '-';
-        document.getElementById('nameModal').style.display = snap.data().name ? 'none' : 'flex';
-      } else {
-        document.getElementById('nameModal').style.display = 'flex';
-      }()) {
-        document.getElementById('username').value = snap.data().name || '';
-        document.getElementById('topskor').innerText = snap.data().best || '-';
-      }
-    });
-      const splash = document.getElementById('splash');
-      const text = document.getElementById('loading-text');
-
-      let progress = 0;
-      const steps = [
-        'Memuat aset...',
-        'Menghubungkan Firebase...',
-        'Menyiapkan profil...',
-        'Hampir selesai...'
-      ];
-
-      const loading = setInterval(() => {
-        progress += 5;
-        bar.style.width = progress + '%';
-        text.innerText = steps[Math.min(Math.floor(progress / 25), steps.length - 1)];
-        if (progress >= 100) {
-          clearInterval(loading);
-          splash.style.display = 'none';
-        }
-      }, 80);
-
-      // === FIREBASE LOGIN ===
-      const user = await signInAnonymously(auth);
-      userId = user.user.uid;
-
-      const ref = doc(db, 'profiles', userId);
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        document.getElementById('username').value = snap.data().name || '';
-        document.getElementById('topskor').innerText = snap.data().best || '-';
-      }
-    });
-
-    window.saveName = async () => {
+    window.saveName = () => {
       const name = document.getElementById('nameInput').value.trim();
       if (!name) return alert('Nama wajib diisi');
-      const ref = doc(db, 'profiles', userId);
-      await setDoc(ref, { name }, { merge:true });
+      localStorage.setItem('playerName', name);
       document.getElementById('showName').innerText = name;
       document.getElementById('nameModal').style.display = 'none';
     };
 
-    window.tebak = async () => {
-      const input = Number(document.getElementById("input").value);
-      if (!input || input < 1 || input > 100) return;
-      const input = document.getElementById("input").value;
-      if (!input) return;
+    window.tebak = () => {
+      const input = Number(document.getElementById('input').value);
+      const info = document.getElementById('info');
+      if (!input || input < 1 || input > 100) {
+        info.innerText = 'Masukkan angka 1 - 100';
+        return;
+      }
 
       percobaan++;
-      const info = document.getElementById("info");
-
-      if (input > angkaRahasia) {
-        info.innerText = "📉 Terlalu besar!";
-      } else if (input < angkaRahasia) {
-        info.innerText = "📈 Terlalu kecil!";
-      } else {
-        const rank = rankText(percobaan);
-        soundWin.play();
-        const badge = badgeForRank(rank);
-        info.innerHTML = `🎉 BENAR!<br>Percobaan: ${percobaan}<br>Rank: <b>${rank}</b><br><span style="color:gold">${badge}</span>`;
-
-        const name = document.getElementById("username").value || "Player";
-        const ref = doc(db, "profiles", userId);
-        await setDoc(ref, { name, best: percobaan, rank }, { merge:true });
-      }
+      if (input > angkaRahasia) info.innerText = '📉 Terlalu besar';
+      else if (input < angkaRahasia) info.innerText = '📈 Terlalu kecil';
+      else info.innerText = `🎉 Benar dalam ${percobaan} percobaan`;
     };
 
     window.resetGame = () => {
       angkaRahasia = Math.floor(Math.random() * 100) + 1;
       percobaan = 0;
-      document.getElementById("info").innerText = "Game di-reset!";
-      document.getElementById("input").value = "";
+      document.getElementById('info').innerText = 'Game di-reset';
+      document.getElementById('input').value = '';
     };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedName = localStorage.getItem('playerName');
+      if (savedName) {
+        document.getElementById('showName').innerText = savedName;
+        document.getElementById('nameModal').style.display = 'none';
+      }
+    });
   </script>  <style>
     * { font-family: 'Segoe UI', sans-serif; box-sizing: border-box; }
     body {
