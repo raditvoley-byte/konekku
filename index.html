@@ -58,6 +58,12 @@
       const ref = doc(db, 'profiles', userId);
       const snap = await getDoc(ref);
       if (snap.exists()) {
+        document.getElementById('showName').innerText = snap.data().name || 'Player';
+        document.getElementById('topskor').innerText = snap.data().best || '-';
+        document.getElementById('nameModal').style.display = snap.data().name ? 'none' : 'flex';
+      } else {
+        document.getElementById('nameModal').style.display = 'flex';
+      }()) {
         document.getElementById('username').value = snap.data().name || '';
         document.getElementById('topskor').innerText = snap.data().best || '-';
       }
@@ -94,6 +100,15 @@
         document.getElementById('topskor').innerText = snap.data().best || '-';
       }
     });
+
+    window.saveName = async () => {
+      const name = document.getElementById('nameInput').value.trim();
+      if (!name) return alert('Nama wajib diisi');
+      const ref = doc(db, 'profiles', userId);
+      await setDoc(ref, { name }, { merge:true });
+      document.getElementById('showName').innerText = name;
+      document.getElementById('nameModal').style.display = 'none';
+    };
 
     window.tebak = async () => {
       const input = Number(document.getElementById("input").value);
@@ -165,9 +180,18 @@
 
   </div>
     </div>
+  </div>  <div id="nameModal" style="position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:10;">
+    <div style="background:#1c1c1c;padding:25px;border-radius:20px;width:300px;text-align:center;box-shadow:0 0 30px cyan;">
+      <h3>👤 Masukkan Nama</h3>
+      <input id="nameInput" placeholder="Nama kamu" />
+      <button onclick="saveName()">SIMPAN</button>
+    </div>
   </div>  <div class="card">
     <h1>🎯 Tebak Angka 1-100</h1><div class="profile">
-  <input id="username" placeholder="Nama kamu" />
+  <div class="profile">
+  👤 <b id="showName">Player</b><br>
+  🏆 Top Skor: <span id="topskor">-</span>
+</div>
   🏆 Top Skor: <span id="topskor">-</span>
 </div>
 
