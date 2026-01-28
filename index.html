@@ -50,27 +50,41 @@
       return "Pemula";
     };
 
-    window.onload = async () => {
-      // splash animation
-      let p = 0;
+    window.addEventListener('DOMContentLoaded', async () => {
+      // === LOADING SEQUENCE ===
       const bar = document.getElementById('bar');
       const splash = document.getElementById('splash');
-      const timer = setInterval(() => {
-        p += 5; bar.style.width = p + '%';
-        if (p >= 100) { clearInterval(timer); splash.style.display = 'none'; }
-      }, 50);
+      const text = document.getElementById('loading-text');
 
+      let progress = 0;
+      const steps = [
+        'Memuat aset...',
+        'Menghubungkan Firebase...',
+        'Menyiapkan profil...',
+        'Hampir selesai...'
+      ];
+
+      const loading = setInterval(() => {
+        progress += 5;
+        bar.style.width = progress + '%';
+        text.innerText = steps[Math.min(Math.floor(progress / 25), steps.length - 1)];
+        if (progress >= 100) {
+          clearInterval(loading);
+          splash.style.display = 'none';
+        }
+      }, 80);
+
+      // === FIREBASE LOGIN ===
       const user = await signInAnonymously(auth);
       userId = user.user.uid;
 
-      const ref = doc(db, "profiles", userId);
+      const ref = doc(db, 'profiles', userId);
       const snap = await getDoc(ref);
-
       if (snap.exists()) {
-        document.getElementById("username").value = snap.data().name;
-        document.getElementById("topskor").innerText = snap.data().best || "-";
+        document.getElementById('username').value = snap.data().name || '';
+        document.getElementById('topskor').innerText = snap.data().best || '-';
       }
-    };
+    });
 
     window.tebak = async () => {
       const input = Number(document.getElementById("input").value);
@@ -104,10 +118,7 @@
       document.getElementById("input").value = "";
     };
   </script>  <style>
-    * {
-      font-family: 'Segoe UI', sans-serif;
-      box-sizing: border-box;
-    }
+    * { font-family: 'Segoe UI', sans-serif; box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
@@ -117,6 +128,34 @@
       align-items: center;
       color: #fff;
     }
+
+    /* Splash */
+    .splash {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    .splash-box { text-align: center; }
+    .splash-box h1 { color: cyan; text-shadow: 0 0 20px cyan; }
+    .progress {
+      width: 220px;
+      height: 8px;
+      background: #222;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    #bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, cyan, lime);
+      transition: width .2s;
+    }
+
     .card {
       width: 420px;
       padding: 30px;
@@ -126,64 +165,28 @@
       box-shadow: 0 0 60px rgba(0,255,255,0.25);
       text-align: center;
     }
-    h1 {
-      margin-bottom: 10px;
-      font-size: 28px;
-      text-shadow: 0 0 15px cyan;
-    }
-    input {
+
+    input, button {
       width: 100%;
-      padding: 15px;
-      margin: 10px 0;
-      border-radius: 12px;
-      border: none;
-      font-size: 16px;
-    }
-    button {
-      width: 100%;
-      padding: 15px;
+      padding: 14px;
       margin-top: 10px;
       border-radius: 12px;
       border: none;
       font-size: 16px;
-      font-weight: bold;
-      background: linear-gradient(90deg, cyan, lime);
-      cursor: pointer;
     }
-    .info {
-      margin-top: 15px;
-      font-size: 18px;
-      min-height: 50px;
-    }
-    .profile {
-      margin-bottom: 15px;
-      font-size: 14px;
-      opacity: .9;
-    }
-      .leaderboard {
-      margin-top: 20px;
-      text-align: left;
-      font-size: 14px;
-      background: rgba(0,0,0,0.3);
-      padding: 15px;
-      border-radius: 15px;
-    }
-    .leaderboard h3 { margin-top: 0; text-align:center; }
-    .lb-item { display:flex; justify-content:space-between; }
-    .avatar {
-      width:60px;height:60px;border-radius:50%;
-      margin:auto;display:block;
-      box-shadow:0 0 15px cyan;
-    }
-    audio { display:none; }
+    button { background: linear-gradient(90deg, cyan, lime); font-weight: bold; }
   </style></head>
 <body>
-  <!-- Splash Screen -->
-  <div id="splash" style="position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:9999;">
-    <h1 style="color:cyan;text-shadow:0 0 20px cyan;">🎯 Tebak Angka</h1>
-    <p style="opacity:.8">Loading game...</p>
-    <div style="width:200px;height:6px;background:#222;border-radius:10px;overflow:hidden;">
-      <div id="bar" style="width:0%;height:100%;background:linear-gradient(90deg,cyan,lime);"></div>
+  <!-- Splash Screen / Loading -->
+  <div id="splash" class="splash">
+    <div class="splash-box">
+      <h1>🎯 Tebak Angka</h1>
+      <p id="loading-text">Menyiapkan game...</p>
+      <div class="progress">
+        <div id="bar"></div>
+      </div>
+    </div>
+  </div>
     </div>
   </div>  <div class="card">
     <h1>🎯 Tebak Angka 1-100</h1><div class="profile">
