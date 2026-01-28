@@ -51,8 +51,17 @@
     };
 
     window.addEventListener('DOMContentLoaded', async () => {
-      // === LOADING SEQUENCE ===
-      const bar = document.getElementById('bar');
+      // === FIREBASE INIT TANPA LOADING ===
+      const user = await signInAnonymously(auth);
+      userId = user.user.uid;
+
+      const ref = doc(db, 'profiles', userId);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        document.getElementById('username').value = snap.data().name || '';
+        document.getElementById('topskor').innerText = snap.data().best || '-';
+      }
+    });
       const splash = document.getElementById('splash');
       const text = document.getElementById('loading-text');
 
@@ -129,32 +138,7 @@
       color: #fff;
     }
 
-    /* Splash */
-    .splash {
-      position: fixed;
-      inset: 0;
-      background: #000;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-    }
-    .splash-box { text-align: center; }
-    .splash-box h1 { color: cyan; text-shadow: 0 0 20px cyan; }
-    .progress {
-      width: 220px;
-      height: 8px;
-      background: #222;
-      border-radius: 10px;
-      overflow: hidden;
-      margin-top: 10px;
-    }
-    #bar {
-      width: 0%;
-      height: 100%;
-      background: linear-gradient(90deg, cyan, lime);
-      transition: width .2s;
-    }
+    
 
     .card {
       width: 420px;
@@ -176,16 +160,9 @@
     }
     button { background: linear-gradient(90deg, cyan, lime); font-weight: bold; }
   </style></head>
-<body>
-  <!-- Splash Screen / Loading -->
-  <div id="splash" class="splash">
-    <div class="splash-box">
-      <h1>🎯 Tebak Angka</h1>
-      <p id="loading-text">Menyiapkan game...</p>
-      <div class="progress">
-        <div id="bar"></div>
-      </div>
-    </div>
+<body></div>
+</div>
+
   </div>
     </div>
   </div>  <div class="card">
